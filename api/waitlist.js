@@ -4,7 +4,7 @@
 //
 // Environment variables (set in Vercel, never committed):
 //   SUPABASE_URL               required  e.g. https://abcd1234.supabase.co
-//   SUPABASE_SERVICE_ROLE_KEY  required  server-only key; bypasses RLS so the table can stay locked
+//   SUPABASE_SERVICE_ROLE_KEY  required  server-only secret key (sb_secret_… or legacy service_role); bypasses RLS
 //   POSTMARK_SERVER_TOKEN      optional  enables the notification email
 //   NOTIFY_TO                  optional  default sales@suresquare.bid
 //   NOTIFY_FROM                optional  default "SureSquare Website <hello@suresquare.bid>"
@@ -60,7 +60,8 @@ module.exports = async (req, res) => {
       method: 'POST',
       headers: {
         apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
+        // Legacy service_role keys are JWTs and also go in Authorization; new sb_secret_ keys go in apikey only.
+        ...(serviceKey.startsWith('eyJ') ? { Authorization: `Bearer ${serviceKey}` } : {}),
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates,return=minimal',
       },
