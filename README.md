@@ -7,7 +7,7 @@ The public marketing site for **suresquare.bid**: static HTML plus one serverles
 | Path | What it is |
 |---|---|
 | `index.html`, `crm.html`, `pricing.html`, `about.html`, `waitlist.html` | Marketing pages (served without `.html` thanks to `cleanUrls`) |
-| `terms.html`, `privacy.html`, `estimating-disclaimer.html` | Legal pages. Terms and Privacy are marked as drafts until reviewed. |
+| `terms.html`, `privacy.html`, `estimating-disclaimer.html` | Legal pages |
 | `404.html` | Branded not-found page |
 | `assets/` | Shared stylesheet, favicon, app icons, social share image |
 | `api/waitlist.js` | `POST /api/waitlist`: saves sign-ups to Supabase and optionally emails sales via Postmark |
