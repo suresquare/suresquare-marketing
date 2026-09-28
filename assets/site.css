@@ -158,7 +158,7 @@ table.qty tr.total td{background:var(--chip);font-weight:600}
 fieldset{border:0;padding:0;margin:0;min-width:0}
 .opts{display:grid;gap:8px;margin-top:6px}
 .opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;background:var(--canvas);font-weight:400;cursor:pointer}
-.opt input{margin-top:5px;accent-color:var(--orange)}
+.field .opt input{flex:none;width:18px;height:18px;margin:4px 0 0;padding:0;accent-color:var(--orange)}
 .opt small{display:block;color:var(--muted)}
 .hp-field{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .form-msg{border-radius:var(--r-sm);padding:12px 14px;font-weight:600}
