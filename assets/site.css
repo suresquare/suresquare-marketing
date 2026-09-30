@@ -142,7 +142,16 @@ table.qty tr.total td{background:var(--chip);font-weight:600}
 .tier .btn{margin-top:auto}
 .addons{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}
 .addon{border:1px dashed var(--line);border-radius:var(--r-md);padding:14px;font-size:.95rem;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.addon .mono{color:var(--orange);font-weight:500}
+.addon .mono{color:var(--ink);font-weight:600}
+.prices{display:grid;grid-template-columns:1fr 1fr;margin:0;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.prices > div{padding:10px 14px}
+.prices > div + div{border-left:1px solid var(--line)}
+.prices dt{font:.72rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.prices dd{margin:2px 0 0}
+.prices .price{font-size:2rem}
+.promo{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--orange);border-radius:var(--r-sm);padding:14px 18px;max-width:760px}
+.promo p{margin:0;color:var(--muted)}
+.promo strong{color:var(--ink)}
 .faq{margin-top:48px;display:grid;gap:10px;max-width:760px}
 .faq details{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 18px}
 .faq summary{cursor:pointer;font-weight:600}

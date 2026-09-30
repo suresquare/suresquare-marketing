@@ -34,7 +34,7 @@
       <a href="/pricing">Pricing</a>
       <a href="/about">About</a>
       <a href="https://suresquare.app">Log in</a>
-      <a class="btn btn-primary" href="/waitlist">Join the beta</a>
+      <a class="btn btn-primary" href="https://app.suresquare.app/start">Start a takeoff</a>
     </nav>
   </div>
 </header>
@@ -43,11 +43,11 @@
   <div class="wrap split">
     <div>
       <p class="eyebrow">Stay informed</p>
-      <h1>Get in early.</h1>
-      <p class="lede" style="margin-top:16px">Beta testers get free takeoffs while we launch, and early-access teams get the CRM first. Tell us what you're interested in and we'll reach out when it's ready for you.</p>
+      <h1>Get the CRM first.</h1>
+      <p class="lede" style="margin-top:16px">The takeoff service is live. <a href="https://app.suresquare.app/start">Start a takeoff</a> any time. SureSquare CRM is still in early access, so leave your details and we'll reach out when it's ready for you.</p>
       <ul class="checks">
-        <li>Free takeoffs during the beta</li>
         <li>First access to SureSquare CRM</li>
+        <li>Launch pricing for early-access teams</li>
         <li>No spam. Just launch updates.</li>
       </ul>
     </div>
@@ -60,8 +60,8 @@
         <fieldset class="field">
           <legend>I'm interested in</legend>
           <div class="opts">
-            <label class="opt"><input type="checkbox" id="interest-takeoffs" name="interest" value="takeoffs" checked><span>Takeoff service<small>Free takeoffs during the beta</small></span></label>
-            <label class="opt"><input type="checkbox" id="interest-crm" name="interest" value="crm"><span>SureSquare CRM<small>Early access</small></span></label>
+            <label class="opt"><input type="checkbox" id="interest-takeoffs" name="interest" value="takeoffs"><span>Takeoff service<small>News and offers</small></span></label>
+            <label class="opt"><input type="checkbox" id="interest-crm" name="interest" value="crm" checked><span>SureSquare CRM<small>Early access</small></span></label>
           </div>
         </fieldset>
         <div class="field"><label for="source">Where did you hear about us?</label>
@@ -83,7 +83,7 @@
         <p class="fine" style="margin-top:10px">Accurate roofing takeoffs and a CRM built for roofers.</p>
       </div>
       <div><h4>Products</h4><ul><li><a href="/#takeoffs">Takeoff service</a></li><li><a href="/crm">SureSquare CRM</a></li><li><a href="/pricing">Pricing</a></li></ul></div>
-      <div><h4>Company</h4><ul><li><a href="/about">About us</a></li><li><a href="/waitlist">Join the beta</a></li><li><a href="mailto:sales@suresquare.bid">sales@suresquare.bid</a></li><li><a href="https://suresquare.app">Log in</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="/about">About us</a></li><li><a href="/waitlist">CRM early access</a></li><li><a href="mailto:sales@suresquare.bid">sales@suresquare.bid</a></li><li><a href="https://suresquare.app">Log in</a></li></ul></div>
       <div><h4>Legal</h4><ul><li><a href="/terms">Terms of service</a></li><li><a href="/privacy">Privacy policy</a></li><li><a href="/estimating-disclaimer">Estimating disclaimer</a></li></ul></div>
     </div>
     <p class="fine foot-base">© <span data-year>2026</span> SureSquare. All rights reserved.</p>
@@ -95,7 +95,7 @@
   var form=document.getElementById('lead-form'), btn=document.getElementById('submit-btn'),
       err=document.getElementById('form-error'), ok=document.getElementById('form-success');
   var want=new URLSearchParams(location.search).get('interest');
-  if(want==='crm'){document.getElementById('interest-crm').checked=true;document.getElementById('interest-takeoffs').checked=false;}
+  if(want==='takeoffs'){document.getElementById('interest-takeoffs').checked=true;document.getElementById('interest-crm').checked=false;}
   function fail(msg,field){err.textContent=msg;err.hidden=false;if(field){field.setAttribute('aria-invalid','true');field.focus();}}
   form.addEventListener('submit',async function(e){
     e.preventDefault(); err.hidden=true;
