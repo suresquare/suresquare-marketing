@@ -38,8 +38,9 @@ module.exports = async (req, res) => {
   if (!EMAIL_PATTERN.test(email)) return res.status(400).json({ error: 'Enter a valid email address, like name@company.com.' });
   if (!interests.length) return res.status(400).json({ error: 'Choose at least one thing you are interested in.' });
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Strip whitespace: a key pasted into Vercel with a line break in it is an invalid header value.
+  const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/\s+/g, '');
   if (!supabaseUrl || !serviceKey) {
     console.error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set.');
     return res.status(500).json({ error: 'Sign-ups are not configured on the server yet. Please email sales@suresquare.bid.' });
