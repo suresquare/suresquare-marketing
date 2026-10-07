@@ -38,8 +38,9 @@ module.exports = async (req, res) => {
   if (!EMAIL_PATTERN.test(email)) return res.status(400).json({ error: 'Enter a valid email address, like name@company.com.' });
   if (!interests.length) return res.status(400).json({ error: 'Choose at least one thing you are interested in.' });
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Strip whitespace: a key pasted into Vercel with a line break in it is an invalid header value.
+  const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/\s+/g, '');
   if (!supabaseUrl || !serviceKey) {
     console.error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set.');
     return res.status(500).json({ error: 'Sign-ups are not configured on the server yet. Please email sales@suresquare.bid.' });
@@ -54,6 +55,7 @@ module.exports = async (req, res) => {
     user_agent: clip(req.headers['user-agent'], 300) || null,
   };
 
+  let saveError = null;
   try {
     // Upsert on email so a repeat sign-up updates the existing row instead of failing.
     const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/leads?on_conflict=email`, {
@@ -67,24 +69,36 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify(lead),
     });
-    if (!response.ok) {
-      console.error('Supabase insert failed:', response.status, await response.text());
-      return res.status(502).json({ error: 'We could not save your sign-up. Please try again.' });
-    }
+    if (!response.ok) saveError = `Supabase ${response.status}: ${clip(await response.text(), 500)}`;
   } catch (err) {
-    console.error('Supabase request error:', err);
-    return res.status(502).json({ error: 'We could not save your sign-up. Please try again.' });
+    saveError = `Supabase request error: ${err && err.message ? err.message : err}`;
   }
 
-  // The lead is saved; a failed notification email should not fail the sign-up.
-  await notify(lead).catch((err) => console.error('Notification email failed:', err));
+  if (saveError) {
+    // Log the lead itself so it can be recovered from the Vercel logs even if the email below also fails.
+    console.error('Supabase insert failed:', saveError, JSON.stringify(lead));
+  }
+
+  // The notification email doubles as the backup copy of the lead when the database save fails,
+  // so a Supabase outage does not lose the sign-up.
+  let emailed = false;
+  try {
+    emailed = await notify(lead, saveError);
+  } catch (err) {
+    console.error('Notification email failed:', err);
+  }
+
+  if (saveError && !emailed) {
+    return res.status(502).json({ error: 'We could not save your sign-up. Please try again, or email sales@suresquare.bid.' });
+  }
 
   return res.status(200).json({ ok: true });
 };
 
-async function notify(lead) {
+// Returns true when the email was sent, false when Postmark is not configured.
+async function notify(lead, saveError) {
   const token = process.env.POSTMARK_SERVER_TOKEN;
-  if (!token) return;
+  if (!token) return false;
 
   const to = process.env.NOTIFY_TO || 'sales@suresquare.bid';
   const from = process.env.NOTIFY_FROM || 'SureSquare Website <hello@suresquare.bid>';
@@ -96,6 +110,7 @@ async function notify(lead) {
     ['Interested in', interestText],
     ['Heard about us', lead.source || '—'],
   ];
+  if (saveError) rows.push(['NOT SAVED', `This sign-up did not save to Supabase (${saveError}). Add it by hand.`]);
 
   const response = await fetch('https://api.postmarkapp.com/email', {
     method: 'POST',
@@ -108,7 +123,7 @@ async function notify(lead) {
       From: from,
       To: to,
       ReplyTo: lead.email,
-      Subject: `New sign-up: ${lead.full_name} (${interestText})`,
+      Subject: `${saveError ? '[NOT SAVED] ' : ''}New sign-up: ${lead.full_name} (${interestText})`,
       TextBody: ['New sign-up from suresquare.bid', '', ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n'),
       HtmlBody: `<table style="font-family:Arial,sans-serif;font-size:14px;color:#17122e">${rows
         .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#5d5873">${k}</td><td>${escapeHtml(v)}</td></tr>`)
@@ -117,6 +132,7 @@ async function notify(lead) {
     }),
   });
   if (!response.ok) throw new Error(`Postmark ${response.status}: ${await response.text()}`);
+  return true;
 }
 
 function clip(value, max) {
