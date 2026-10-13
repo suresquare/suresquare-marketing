@@ -5,7 +5,7 @@
   var AW = 'AW-18492651168';
   var LABELS = {
     start_takeoff: '', // click on any "Start a takeoff" link to app.suresquare.app
-    lead: ''           // waitlist form saved
+    lead: 'X1neCJvc4I8dEKDt_fFE' // "Sign-up" action: waitlist form saved
   };
 
   function track(name, label, params) {
