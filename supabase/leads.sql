@@ -13,6 +13,11 @@ create table if not exists public.leads (
   status      text not null default 'new'      -- for sales follow-up: new, contacted, converted, …
 );
 
+-- Added 2026-10: which site offer a sign-up claimed, and the popup's "3 or more users" answer.
+-- Safe to re-run; the API saves leads without these columns until they exist.
+alter table public.leads add column if not exists offer text;              -- e.g. 'crm-50-for-life'
+alter table public.leads add column if not exists three_plus_users boolean;
+
 create index if not exists leads_created_at_idx on public.leads (created_at desc);
 
 -- Lock the table down. The website writes with the service role key (server-side only),
