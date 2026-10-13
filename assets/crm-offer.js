@@ -70,10 +70,11 @@
         var res = await fetch('/api/waitlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name: name.value.trim(), email: email.value.trim(), company: company.value.trim(), interests: ['crm'], website: form.website.value })
+          body: JSON.stringify({ full_name: name.value.trim(), email: email.value.trim(), company: company.value.trim(), interests: ['crm'], offer: 'crm-50-for-life', three_plus_users: true, website: form.website.value })
         });
         var out = await res.json().catch(function () { return {}; });
         if (!res.ok) throw new Error(out.error || 'We could not save your sign-up. Please try again.');
+        if (window.ssTrackLead) window.ssTrackLead(['crm']);
         form.hidden = true; fine.hidden = true; ok.hidden = false;
         ok.setAttribute('tabindex', '-1'); ok.focus();
         remember();

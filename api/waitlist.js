@@ -12,6 +12,8 @@
 const INTERESTS = { takeoffs: 'Takeoff service', crm: 'SureSquare CRM' };
 const SOURCES = ['DuroLast', 'Elevate', 'Facebook', 'Google', 'Other'];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Offer codes the site may send with a sign-up (see assets/crm-offer.js).
+const OFFERS = { 'crm-50-for-life': 'CRM 50% off for life (first 20, 3+ users)' };
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -54,24 +56,17 @@ module.exports = async (req, res) => {
     source,
     user_agent: clip(req.headers['user-agent'], 300) || null,
   };
+  // Offer fields are only sent when present, so plain waitlist sign-ups never depend on these columns.
+  if (body.offer in OFFERS) lead.offer = body.offer;
+  if (typeof body.three_plus_users === 'boolean') lead.three_plus_users = body.three_plus_users;
 
-  let saveError = null;
-  try {
-    // Upsert on email so a repeat sign-up updates the existing row instead of failing.
-    const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/leads?on_conflict=email`, {
-      method: 'POST',
-      headers: {
-        apikey: serviceKey,
-        // Legacy service_role keys are JWTs and also go in Authorization; new sb_secret_ keys go in apikey only.
-        ...(serviceKey.startsWith('eyJ') ? { Authorization: `Bearer ${serviceKey}` } : {}),
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify(lead),
-    });
-    if (!response.ok) saveError = `Supabase ${response.status}: ${clip(await response.text(), 500)}`;
-  } catch (err) {
-    saveError = `Supabase request error: ${err && err.message ? err.message : err}`;
+  let saveError = await saveLead(supabaseUrl, serviceKey, lead);
+  if (saveError && /PGRST204|offer|three_plus_users/.test(saveError) && ('offer' in lead || 'three_plus_users' in lead)) {
+    // The offer columns are not in the table yet (supabase/leads.sql not re-run). Save the lead without them
+    // rather than losing it, and keep the offer details in the logs and email.
+    console.error('Saving without offer columns:', saveError);
+    const { offer, three_plus_users, ...basic } = lead;
+    saveError = await saveLead(supabaseUrl, serviceKey, basic);
   }
 
   if (saveError) {
@@ -95,6 +90,28 @@ module.exports = async (req, res) => {
   return res.status(200).json({ ok: true });
 };
 
+// Upserts the lead on email. Returns null on success, or an error description.
+async function saveLead(supabaseUrl, serviceKey, lead) {
+  try {
+    // Upsert on email so a repeat sign-up updates the existing row instead of failing.
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/leads?on_conflict=email`, {
+      method: 'POST',
+      headers: {
+        apikey: serviceKey,
+        // Legacy service_role keys are JWTs and also go in Authorization; new sb_secret_ keys go in apikey only.
+        ...(serviceKey.startsWith('eyJ') ? { Authorization: `Bearer ${serviceKey}` } : {}),
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(lead),
+    });
+    if (!response.ok) return `Supabase ${response.status}: ${clip(await response.text(), 500)}`;
+    return null;
+  } catch (err) {
+    return `Supabase request error: ${err && err.message ? err.message : err}`;
+  }
+}
+
 // Returns true when the email was sent, false when Postmark is not configured.
 async function notify(lead, saveError) {
   const token = process.env.POSTMARK_SERVER_TOKEN;
@@ -110,6 +127,8 @@ async function notify(lead, saveError) {
     ['Interested in', interestText],
     ['Heard about us', lead.source || '—'],
   ];
+  if (lead.offer) rows.push(['Offer', OFFERS[lead.offer]]);
+  if (typeof lead.three_plus_users === 'boolean') rows.push(['3+ CRM users', lead.three_plus_users ? 'Yes' : 'No']);
   if (saveError) rows.push(['NOT SAVED', `This sign-up did not save to Supabase (${saveError}). Add it by hand.`]);
 
   const response = await fetch('https://api.postmarkapp.com/email', {
