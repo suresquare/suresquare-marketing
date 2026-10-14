@@ -23,9 +23,10 @@ No build step and no dependencies. To edit copy, edit the HTML directly. Every p
 3. **Environment variables** (Vercel → this project → Settings → Environment Variables), followed by a redeploy:
    - `SUPABASE_URL` (required)
    - `SUPABASE_SERVICE_ROLE_KEY` (required, server-only, never put it in the repo)
-   - `POSTMARK_SERVER_TOKEN` (optional, enables an email to sales for each sign-up)
+   - `POSTMARK_SERVER_TOKEN` (optional, enables an email to sales for each sign-up and a confirmation email to the person who signed up)
    - `NOTIFY_TO` (optional, default `sales@suresquare.bid`)
    - `NOTIFY_FROM` (optional, default `SureSquare Website <hello@suresquare.bid>`; must be a Postmark-verified sender)
+   - `CONFIRM_REPLY_TO` (optional, reply-to on the confirmation email, default `sales@suresquare.bid`)
 4. **Test** on the `*.vercel.app` URL: submit the waitlist form and check that a row appears in Supabase → Table editor → `leads`.
 5. **Domain:** once it works, add `suresquare.bid` and `www.suresquare.bid` under Settings → Domains, update DNS at the registrar as Vercel instructs, then remove the domain from Softr.
 

@@ -7,7 +7,8 @@
 //   SUPABASE_SERVICE_ROLE_KEY  required  server-only secret key (sb_secret_… or legacy service_role); bypasses RLS
 //   POSTMARK_SERVER_TOKEN      optional  enables the notification email
 //   NOTIFY_TO                  optional  default sales@suresquare.bid
-//   NOTIFY_FROM                optional  default "SureSquare Website <hello@suresquare.bid>"
+//   NOTIFY_FROM                optional  default "SureSquare <hello@suresquare.bid>"; must be a Postmark-verified sender
+//   CONFIRM_REPLY_TO           optional  reply-to on the sign-up's confirmation email, default sales@suresquare.bid
 
 const INTERESTS = { takeoffs: 'Takeoff service', crm: 'SureSquare CRM' };
 const SOURCES = ['DuroLast', 'Elevate', 'Facebook', 'Google', 'Other'];
@@ -83,6 +84,15 @@ module.exports = async (req, res) => {
     console.error('Notification email failed:', err);
   }
 
+  // Confirmation to the person who signed up. Only after a successful save, so we never confirm a lost sign-up.
+  if (!saveError) {
+    try {
+      await confirm(lead);
+    } catch (err) {
+      console.error('Confirmation email failed:', err);
+    }
+  }
+
   if (saveError && !emailed) {
     return res.status(502).json({ error: 'We could not save your sign-up. Please try again, or email sales@suresquare.bid.' });
   }
@@ -118,7 +128,7 @@ async function notify(lead, saveError) {
   if (!token) return false;
 
   const to = process.env.NOTIFY_TO || 'sales@suresquare.bid';
-  const from = process.env.NOTIFY_FROM || 'SureSquare Website <hello@suresquare.bid>';
+  const from = process.env.NOTIFY_FROM || 'SureSquare <hello@suresquare.bid>';
   const interestText = lead.interests.map((i) => INTERESTS[i]).join(', ');
   const rows = [
     ['Name', lead.full_name],
@@ -131,6 +141,69 @@ async function notify(lead, saveError) {
   if (typeof lead.three_plus_users === 'boolean') rows.push(['3+ CRM users', lead.three_plus_users ? 'Yes' : 'No']);
   if (saveError) rows.push(['NOT SAVED', `This sign-up did not save to Supabase (${saveError}). Add it by hand.`]);
 
+  return sendEmail(token, {
+    From: from,
+    To: to,
+    ReplyTo: lead.email,
+    Subject: `${saveError ? '[NOT SAVED] ' : ''}${lead.offer ? 'CRM 50% offer sign-up' : 'New sign-up'}: ${lead.full_name}${lead.company ? ` (${lead.company})` : ''}`,
+    TextBody: ['New sign-up from suresquare.bid', '', ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n'),
+    HtmlBody: `<table style="font-family:Arial,sans-serif;font-size:14px;color:#0b162f">${rows
+      .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#47557a">${k}</td><td>${escapeHtml(v)}</td></tr>`)
+      .join('')}</table>`,
+  });
+}
+
+// Emails the person who signed up. Returns false when Postmark is not configured.
+async function confirm(lead) {
+  const token = process.env.POSTMARK_SERVER_TOKEN;
+  if (!token) return false;
+  const { subject, paragraphs } = confirmationCopy(lead);
+  const firstName = lead.full_name.split(/\s+/)[0];
+  const body = [`Hi ${firstName},`, ...paragraphs, 'Questions? Just reply to this email.', 'The SureSquare team'];
+  return sendEmail(token, {
+    From: process.env.NOTIFY_FROM || 'SureSquare <hello@suresquare.bid>',
+    To: lead.email,
+    ReplyTo: process.env.CONFIRM_REPLY_TO || 'sales@suresquare.bid',
+    Subject: subject,
+    TextBody: [...body, 'SureSquare · https://suresquare.bid'].join('\n\n'),
+    HtmlBody: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#0b162f;max-width:560px">${body
+      .map((p) => `<p style="margin:0 0 14px">${escapeHtml(p)}</p>`)
+      .join('')}<p style="margin:24px 0 0;font-size:12px;color:#47557a">SureSquare · <a href="https://suresquare.bid" style="color:#0e256b">suresquare.bid</a></p></div>`,
+  });
+}
+
+// Wording of the confirmation email, by what the person signed up for.
+function confirmationCopy(lead) {
+  const company = lead.company || 'your company';
+  if (lead.offer === 'crm-50-for-life') {
+    return {
+      subject: 'Your SureSquare CRM early-access request',
+      paragraphs: [
+        'Thanks for claiming a spot in SureSquare CRM early access.',
+        `The first 20 roofing companies with 3 or more users get 50% off CRM pricing for life. We go through requests in the order they come in, and we'll email you to confirm whether ${company} has one of the 20 spots before the CRM opens to your team.`,
+        'There is nothing to pay now.',
+      ],
+    };
+  }
+  if (lead.interests.includes('crm')) {
+    return {
+      subject: "You're on the SureSquare CRM early-access list",
+      paragraphs: [
+        "Thanks for signing up. You're on the early-access list for SureSquare CRM.",
+        "We'll email you when it's ready for your team.",
+      ],
+    };
+  }
+  return {
+    subject: 'Thanks for signing up with SureSquare',
+    paragraphs: [
+      "Thanks for signing up. We'll send you news and offers for the SureSquare takeoff service.",
+      'The takeoff service is live now. You can start a takeoff any time at https://app.suresquare.app/start.',
+    ],
+  };
+}
+
+async function sendEmail(token, message) {
   const response = await fetch('https://api.postmarkapp.com/email', {
     method: 'POST',
     headers: {
@@ -138,17 +211,7 @@ async function notify(lead, saveError) {
       'Content-Type': 'application/json',
       'X-Postmark-Server-Token': token,
     },
-    body: JSON.stringify({
-      From: from,
-      To: to,
-      ReplyTo: lead.email,
-      Subject: `${saveError ? '[NOT SAVED] ' : ''}New sign-up: ${lead.full_name} (${interestText})`,
-      TextBody: ['New sign-up from suresquare.bid', '', ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n'),
-      HtmlBody: `<table style="font-family:Arial,sans-serif;font-size:14px;color:#17122e">${rows
-        .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#5d5873">${k}</td><td>${escapeHtml(v)}</td></tr>`)
-        .join('')}</table>`,
-      MessageStream: 'outbound',
-    }),
+    body: JSON.stringify({ ...message, MessageStream: 'outbound' }),
   });
   if (!response.ok) throw new Error(`Postmark ${response.status}: ${await response.text()}`);
   return true;
